@@ -1,4 +1,4 @@
-A small data model to turn Trino query events into historical usage statistics about Iceberg tables. Right now it can only answer how many distinct users queried a table during a period, based on a few generated demo events. Will add resources per team next.
+A small data model to turn Trino query events into historical usage statistics about Iceberg tables. Right now it answers how many distinct users queried a table and how many resources a team consumed during a period, based on a few generated demo events and HR snapshots. We model that user -> team information comes from a daily HR export. A user's past queries are attributes to the team they were on at the time.
 
 ## Running the demo
 
@@ -18,25 +18,25 @@ python3 -m venv .venv
 .venv/bin/python setup_db.py
 ```
 
-Insert a few demo events into the raw table, running again replaces the values:
+Insert a few demo events and daily HR user-to-team snapshots into the raw tables, running again replaces the values:
 
 ```sh
 .venv/bin/python load_demo_data.py
 ```
 
-Populate the model tables from the raw events, running again rebuilds them:
+Populate the model tables from the raw events and snapshots, running again rebuilds them:
 
 ```sh
 .venv/bin/python run_transforms.py
 ```
 
-To ask how many distinct users queried `iceberg.analytics.page_views` from the 10th to the 12th of November (expected: 4):
+To ask how many distinct users queried `iceberg.analytics.page_views` (expected: 4) and how much CPU and bytes the team `product-analytics` used (expected: 14402 ms and 452460198 bytes), both from the 10th to the 12th of November:
 
 ```sh
 docker compose exec -T trino trino --catalog iceberg --output-format ALIGNED < queries/examples.sql
 ```
 
-To ask about another table or period, change the values in `queries/examples.sql`. You can also connect any SQL client with a Trino driver to `localhost:8080` (any user name, catalog `iceberg`).
+To ask about another table, team or period, change the values in `queries/examples.sql`. Users who aren't in the HR export count as the team `unknown`. You can also connect any SQL client with a Trino driver to `localhost:8080` (any user name, catalog `iceberg`).
 
 Use `docker compose down` to stop the container and also delete all data.
 
