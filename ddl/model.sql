@@ -20,3 +20,18 @@ WITH (
     format = 'PARQUET',
     partitioning = ARRAY['query_date']
 );
+
+CREATE TABLE IF NOT EXISTS meta.fact_query_table_access (
+    query_id             VARCHAR COMMENT 'Trino query ID, joins to fact_query',
+    query_date           DATE    COMMENT 'UTC day at queries end_time',
+    user                 VARCHAR COMMENT 'The user that ran the query (copied from the query)',
+    catalog_name         VARCHAR COMMENT 'Catalog of the table that was read',
+    schema_name          VARCHAR COMMENT 'Schema of the table that was read',
+    table_name           VARCHAR COMMENT 'Name of the table that was read, views are expanded to their base tables',
+    physical_input_bytes BIGINT  COMMENT 'Additive bytes read from this table by this query, summed up for every scan of the table'
+)
+COMMENT 'One row per query and table read'
+WITH (
+    format = 'PARQUET',
+    partitioning = ARRAY['query_date']
+);
