@@ -5,7 +5,7 @@ from pathlib import Path
 from setup_db import connect, run_sql_file
 
 TRANSFORM_DIR = Path(__file__).parent / "transform"
-TRANSFORMS = ["load_fact_query.sql", "load_fact_query_table_access.sql"]
+TRANSFORMS = ["load_user_team_membership.sql", "load_fact_query.sql", "load_fact_query_table_access.sql"]
 
 
 def main():

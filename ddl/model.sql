@@ -35,3 +35,14 @@ WITH (
     format = 'PARQUET',
     partitioning = ARRAY['query_date']
 );
+
+CREATE TABLE IF NOT EXISTS meta.user_team_membership (
+    user       VARCHAR COMMENT 'The user, same as in fact_query',
+    team       VARCHAR COMMENT 'Team the user was on from valid_from up to the day BEFORE valid_to',
+    valid_from DATE    COMMENT 'First UTC day the user was on this team',
+    valid_to   DATE    COMMENT 'First UTC day the user was no longer on this team, 9999-12-31 while still on it'
+)
+COMMENT 'One row per user and continuous period on one team (SCD Type 2), users without a team have no rows and count as unknown'
+WITH (
+    format = 'PARQUET'
+);
