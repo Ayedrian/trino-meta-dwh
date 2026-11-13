@@ -1,4 +1,4 @@
-A small data model to turn Trino query events into historical usage statistics about Iceberg tables. Right now there's only a runnable Trino + Iceberg environment, I will add the model next.
+A small data model to turn Trino query events into historical usage statistics about Iceberg tables. Right now it can only answer how many distinct users queried a table during a period, based on a few generated demo events. Will add resources per team next.
 
 ## Running the demo
 
@@ -24,17 +24,19 @@ Insert a few demo events into the raw table, running again replaces the values:
 .venv/bin/python load_demo_data.py
 ```
 
-How to check that we can work with Iceberg tables:
+Populate the model tables from the raw events, running again rebuilds them:
 
 ```sh
-docker compose exec -T trino trino --catalog iceberg --execute "
-CREATE SCHEMA test;
-CREATE TABLE test.t (id BIGINT, name VARCHAR);
-INSERT INTO test.t VALUES (1, 'a'), (2, 'b');
-SELECT * FROM test.t;
-DROP TABLE test.t;
-DROP SCHEMA test;"
+.venv/bin/python run_transforms.py
 ```
+
+To ask how many distinct users queried `iceberg.analytics.page_views` from the 10th to the 12th of November (expected: 4):
+
+```sh
+docker compose exec -T trino trino --catalog iceberg --output-format ALIGNED < queries/examples.sql
+```
+
+To ask about another table or period, change the values in `queries/examples.sql`. You can also connect any SQL client with a Trino driver to `localhost:8080` (any user name, catalog `iceberg`).
 
 Use `docker compose down` to stop the container and also delete all data.
 
