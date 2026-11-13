@@ -1,15 +1,18 @@
-# Inserts the few demo events into the raw table
+# Inserts the demo events and HR snapshots into the raw tables
 
 from pathlib import Path
 
 from setup_db import connect, run_sql_file
 
-SEED_FILE = Path(__file__).parent / "demo" / "seed_events.sql"
+DEMO_DIR = Path(__file__).parent / "demo"
+SEED_FILES = ["seed_events.sql", "seed_hr_snapshots.sql"]
 
 
 def main():
-    print(f"Running {SEED_FILE.relative_to(SEED_FILE.parent.parent)}")
-    run_sql_file(connect().cursor(), SEED_FILE)
+    cursor = connect().cursor()
+    for name in SEED_FILES:
+        print(f"Running demo/{name}")
+        run_sql_file(cursor, DEMO_DIR / name)
 
 
 if __name__ == "__main__":
