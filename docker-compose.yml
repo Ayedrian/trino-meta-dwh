@@ -1,0 +1,8 @@
+services:
+  trino:
+    image: trinodb/trino:484
+    volumes:
+      - ./trino/catalog/iceberg.properties:/etc/trino/catalog/iceberg.properties:ro
+    healthcheck:
+      start_period: 60s
+      start_interval: 2s
