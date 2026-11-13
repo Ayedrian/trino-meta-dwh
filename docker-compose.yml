@@ -1,6 +1,8 @@
 services:
   trino:
     image: trinodb/trino:484
+    ports:
+      - "8080:8080"
     volumes:
       - ./trino/catalog/iceberg.properties:/etc/trino/catalog/iceberg.properties:ro
     healthcheck:

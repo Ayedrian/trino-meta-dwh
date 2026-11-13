@@ -10,6 +10,14 @@ docker compose up -d --wait
 
 Starts a single Trino container, its `iceberg` catalog uses a file-based metastore and keeps its data on the local disk inside the container. `--wait` returns once Trino is healthy, which can take a little while (30+ seconds).
 
+Create the tables like so (needs Python 3.9 or newer):
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python setup_db.py
+```
+
 How to check that we can work with Iceberg tables:
 
 ```sh
@@ -23,3 +31,7 @@ DROP SCHEMA test;"
 ```
 
 Use `docker compose down` to stop the container and also delete all data.
+
+## Orchestration
+
+The tables are created and loaded by plain Trino SQL files, a small runner written in Python runs them in order through the official `trino` client. In prod, an Airflow DAG would probably take over: One run a day, retries and backfills over date ranges. dbt (`dbt-trino` adapter) would replace my script with dbt models etc.
