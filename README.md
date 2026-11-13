@@ -18,6 +18,12 @@ python3 -m venv .venv
 .venv/bin/python setup_db.py
 ```
 
+Insert a few demo events into the raw table, running again replaces the values:
+
+```sh
+.venv/bin/python load_demo_data.py
+```
+
 How to check that we can work with Iceberg tables:
 
 ```sh
