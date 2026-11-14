@@ -104,11 +104,17 @@ On every run, `user_team_membership` is rebuilt from all snapshots ([`transform/
 
 A query counts for the team its user was on the day the query ended. In the demo, bob moves from `product-analytics` to `data-platform` on the 12th of November. His earlier queries stay attributed to `product-analytics`, the later ones count for `data-platform`.
 
-Users who aren't in the export count as `unknown`, as do queries from before the first snapshot. The most likely cause is a service account that nobody mapped, like svc_reporting in the demo, so service accounts need to be in the export under the team that owns them.
+Users who aren't in the export count as `unknown`, as do queries from before the first snapshot. The most likely cause is a service account that nobody mapped (for example like svc_reporting in the demo), so service accounts need to be in the export under the team that owns them.
 
-The user is `context.user`, the identity a query runs as, so a real person rather than some tool acting for them. Teams don't come from `context.groups`: users belong to many groups, which would need their own mapping to teams and would be a second source of truth next to HR.
+The user is `context.user`, the identity a query runs as (a real person and not some some tool acting for them). Teams don't come from `context.groups`: users belong to many groups, which would need their own mapping to teams and would be a second source of truth next to HR.
 
 ## Queries over several tables and data sources
+
+The tables a query read come from the event's `ioMetadata.inputs`, the base tables the engine actually read (views are expanded to their tables). The bridge table gets one row per query and table:
+
+- **Several tables:** the query counts as a use of each table it read. A table scanned twice (for example with a self-join), still creates one row, with the bytes summed.
+- **Several catalogs:** tables from every catalog count. So a join of an Iceberg table with a PostgreSQL table gets a row for each one, and the query's CPU is split over both. To restrict a result to Iceberg tables, filter on `catalog_name`.
+- **Metadata tables:** We leave inputs from `system`, `information_schema` and Iceberg metadata tables such as `orders$snapshots` out of the bridge, they're mostly background calls tools and drivers mae. Their CPU usage still counts for the team though since the queries stay in `fact_query`.
 
 ## Resource metrics
 
