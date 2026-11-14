@@ -1,10 +1,8 @@
 A small data model to turn Trino query events into historical usage statistics about Iceberg tables.
 
-The example queries (how many distinct users queried a table, how many resources a team consumed etc.) from the test task can be run against a real Trino instance in a Docker container with Iceberg tables on the local disk instead of an S3 instance. The data is a few hand-written demo events and HR snapshots. The setup steps for that (requires Docker and Python 3.9) are below. Feel free to skip the setup if you're currently only interested in skimming the SQL and reading about my design choices and assumptions I've made throughout the task. That part starts at [Data model](#data-model).
+The example queries (how many distinct users queried a table, how many resources a team consumed etc.) from the test task can be run against a real Trino instance in a Docker container with Iceberg tables on the local disk instead of an S3 instance. The data is a few hand-written demo events and HR snapshots. The setup steps for that (requires Docker and Python 3.9 or newer) are below. Feel free to skip the setup if you're currently only interested in skimming the SQL and reading about my design choices and assumptions I've made throughout the task. That part starts at [Data model](#data-model).
 
 **Contents:** [Running the demo](#running-the-demo) · [Data model](#data-model) · [Example queries](#example-queries) · [Users and teams](#users-and-teams) · [Queries over several tables and data sources](#queries-over-several-tables-and-data-sources) · [Resource metrics](#resource-metrics) · [How the data is updated](#how-the-data-is-updated) · [Additional metadata](#additional-metadata) · [Possible extensions](#possible-extensions)
-
-MOVE TO LATER IN README:
 
 ## Running the demo
 
@@ -93,16 +91,22 @@ The model's DDL is in [`ddl/model.sql`](ddl/model.sql). We have one load per tab
 
 Found in [`queries/examples.sql`](queries/examples.sql). Each query asks about one concrete table or team and period, first and last day are included.
 
-- **Distinct users of table X:** `count(DISTINCT user)` on just the bridge, filtered by table and `query_date`. Distinct users cannot be summed over days (would over count), so they're always counted over the exact period queried.
+- **Distinct users of table X:** `count(DISTINCT user)` on just the bridge, filtered by table and `query_date`. Distinct users cannot be summed over days (would overcount), so they're always counted over the exact period queried.
 - **Resources of team Y:** the sum of `cpu_time_ms` and `physical_input_bytes` from `fact_query`, joined to `user_team_membership`
   on the user and the day. Each query counts fully for the team its user was on that day. Users without a team fall under `unknown`.
 - **Weekly trend of team Y:** The same join, with queries, distinct users, CPU and bytes per week. Replace `'week'` with `'day'` or `'month'` for another grain.
 
-In the demo data, bob moves from `product-analytics` to `data-platform` on November 12th. From that day on his queries count for the `data-platform` team. Once the team aggregate exists, a team's CPU and bytes could be summed from it instead, but distinct users over a period always needs to come from the facts.
-
 ## Users and teams
 
-We model that user -> team information comes from a daily HR export. A user's past queries are attributed to the team they were on at the time.
+We assume HR, or the company directory (for example LDAP), exports every user's current team once a day, under the same user name that Trino reports as `context.user`. Every day's export is kept in `raw.hr_user_team_snapshot` and gives us the team for that whole UTC day.
+
+On every run, `user_team_membership` is rebuilt from all snapshots ([`transform/load_user_team_membership.sql`](transform/load_user_team_membership.sql)). A user's consecutive days on one team turn into one row with a range `[valid_from, valid_to)`. The table is tiny, rebuilding it is cheap and safe to repeat, and correcting an old snapshot fixes the history.
+
+A query counts for the team its user was on the day the query ended. In the demo, bob moves from `product-analytics` to `data-platform` on the 12th of November. His earlier queries stay attributed to `product-analytics`, the later ones count for `data-platform`.
+
+Users who aren't in the export count as `unknown`, as do queries from before the first snapshot. The most likely cause is a service account that nobody mapped, like svc_reporting in the demo, so service accounts need to be in the export under the team that owns them.
+
+The user is `context.user`, the identity a query runs as, so a real person rather than some tool acting for them. Teams don't come from `context.groups`: users belong to many groups, which would need their own mapping to teams and would be a second source of truth next to HR.
 
 ## Queries over several tables and data sources
 
