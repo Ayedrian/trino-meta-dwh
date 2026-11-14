@@ -11,11 +11,15 @@ def connect():
     return trino.dbapi.connect(host="localhost", port=8080, user="meta_dwh", catalog="iceberg")
 
 
-def run_sql_file(cursor, path):
-    for statement in path.read_text().split(";"): # split SQL statements -> never put a ; inside a string or comment
+def run_sql(cursor, sql):
+    for statement in sql.split(";"): # split SQL statements -> never put a ; inside a string or comment
         if statement.strip():
             cursor.execute(statement)
             cursor.fetchall() # polls until query actually finishes
+
+
+def run_sql_file(cursor, path):
+    run_sql(cursor, path.read_text())
 
 
 def main():

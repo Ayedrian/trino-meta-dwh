@@ -1,4 +1,4 @@
-A small data model to turn Trino query events into historical usage statistics about Iceberg tables. Right now it answers how many distinct users queried a table and how many resources a team consumed during a period, based on a few generated demo events and HR snapshots. We model that user -> team information comes from a daily HR export. A user's past queries are attributes to the team they were on at the time.
+A small data model to turn Trino query events into historical usage statistics about Iceberg tables. Right now it answers how many distinct users queried a table and how many resources a team consumed during a period, based on a few generated demo events and HR snapshots. We model that user -> team information comes from a daily HR export. A user's past queries are attributed to the team they were on at the time.
 
 ## Running the demo
 
@@ -24,10 +24,10 @@ Insert a few demo events and daily HR user-to-team snapshots into the raw tables
 .venv/bin/python load_demo_data.py
 ```
 
-Populate the model tables from the raw events and snapshots, running again rebuilds them:
+Populate the model tables for the 10th to the 12th of November. Each day is replaced, so running it again doesn't add anything new.
 
 ```sh
-.venv/bin/python run_transforms.py
+.venv/bin/python run_pipeline.py --start 2026-11-10 --end 2026-11-12
 ```
 
 To ask how many distinct users queried `iceberg.analytics.page_views` (expected: 4) and how much CPU and bytes the team `product-analytics` used (expected: 14402 ms and 452460198 bytes), both from the 10th to the 12th of November:
