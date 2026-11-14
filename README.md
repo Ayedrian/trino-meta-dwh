@@ -30,6 +30,9 @@ Populate the model tables for the 10th to the 12th of November. Each day is repl
 .venv/bin/python run_pipeline.py --start 2026-11-10 --end 2026-11-12
 ```
 
+If no dates are specified, the pipeline simply loads the last 3 complete UTC days (the 3 days before today). That's what a daily scheduled run would do, so that events that arrive a day or two late are still picked up.
+The demo events currently are on fixed dates in November 2026, when I worked on this repo, so a run without dates only finds them if those days are among the last 3.
+
 To ask how many distinct users queried `iceberg.analytics.page_views` (expected: 4) and how much CPU and bytes the team `product-analytics` used (expected: 14402 ms and 452460198 bytes), both from the 10th to the 12th of November:
 
 ```sh
@@ -42,4 +45,4 @@ Use `docker compose down` to stop the container and also delete all data.
 
 ## Orchestration
 
-The tables are created and loaded by plain Trino SQL files, a small runner written in Python runs them in order through the official `trino` client. In prod, an Airflow DAG would probably take over: One run a day, retries and backfills over date ranges. dbt (`dbt-trino` adapter) would replace my script with dbt models etc.
+The tables are created and loaded by plain Trino SQL files, a small runner written in Python runs them in order through the official `trino` client. In prod, an Airflow DAG would probably take over: One run a day (run_pipeline.py without specified dates), retries and backfills over date ranges (start/end). dbt (`dbt-trino` adapter) would replace my script with dbt models etc.
