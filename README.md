@@ -112,11 +112,28 @@ The user is `context.user`, the identity a query runs as (a real person and not 
 
 The tables a query read come from the event's `ioMetadata.inputs`, the base tables the engine actually read (views are expanded to their tables). The bridge table gets one row per query and table:
 
-- **Several tables:** the query counts as a use of each table it read. A table scanned twice (for example with a self-join), still creates one row, with the bytes summed.
+- **Several tables:** the query counts as a use of each table it read. A table scanned twice (for example with a self-join) still creates one row, with the bytes summed.
 - **Several catalogs:** tables from every catalog count. So a join of an Iceberg table with a PostgreSQL table gets a row for each one, and the query's CPU is split over both. To restrict a result to Iceberg tables, filter on `catalog_name`.
-- **Metadata tables:** We leave inputs from `system`, `information_schema` and Iceberg metadata tables such as `orders$snapshots` out of the bridge, they're mostly background calls tools and drivers mae. Their CPU usage still counts for the team though since the queries stay in `fact_query`.
+- **Metadata tables:** we leave inputs from `system`, `information_schema` and Iceberg metadata tables such as `orders$snapshots` out of the bridge, since they're mostly background calls tools and drivers make. Their CPU usage still counts for the team though since the queries stay inside `fact_query`.
 
 ## Resource metrics
+
+Each query's resources are sourced from the event's statistics and are stored on `fact_query`:
+
+| Metric | Column | Aggregated over queries and days with |
+|---|---|---|
+| CPU time of all tasks | `cpu_time_ms` | `sum` |
+| Bytes read from storage | `physical_input_bytes` | `sum` |
+| Peak user memory | `peak_user_memory_bytes` | `max`, since a sum of peaks means nothing |
+| Distinct users | `user` | `count(DISTINCT ...)` over the exact period, never summed from days |
+
+Failed queries are included, since their CPU was actually spent. `query_state = 'FINISHED'` filters them out.
+
+**Per-table CPU.** Trino reports CPU only per query, so the bridge splits it across the query's tables in proportion to the bytes read from each, stored in `attributed_cpu_time_ms`. A query's shares add up to its CPU, so per-table CPU can be summed like any other metric. If a table's bytes are missing (some connectors don't report them), or they're all 0, the query is split evenly instead. `attribution_method` states which split was used. Per-table bytes aren't split at all: they are what the event reports for that table.
+
+Two small caveats:
+- Bytes read are only a proxy for CPU usage. A join or an aggregation can cost CPU out of proportion to the bytes read, so per-table CPU is only an estimate, the team totals however are exact.
+- Queries that read only metadata tables get no bridge rows. Their CPU usage does get attributed to teams but not for any table, resulting in a per-table total that can be slightly lower than the cluster total.
 
 ## How the data is updated
 
