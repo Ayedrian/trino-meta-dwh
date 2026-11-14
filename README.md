@@ -91,6 +91,15 @@ The model's DDL is in [`ddl/model.sql`](ddl/model.sql). We have one load per tab
 
 ## Example queries
 
+Found in [`queries/examples.sql`](queries/examples.sql). Each query asks about one concrete table or team and period, first and last day are included.
+
+- **Distinct users of table X:** `count(DISTINCT user)` on just the bridge, filtered by table and `query_date`. Distinct users cannot be summed over days (would over count), so they're always counted over the exact period queried.
+- **Resources of team Y:** the sum of `cpu_time_ms` and `physical_input_bytes` from `fact_query`, joined to `user_team_membership`
+  on the user and the day. Each query counts fully for the team its user was on that day. Users without a team fall under `unknown`.
+- **Weekly trend of team Y:** The same join, with queries, distinct users, CPU and bytes per week. Replace `'week'` with `'day'` or `'month'` for another grain.
+
+In the demo data, bob moves from `product-analytics` to `data-platform` on November 12th. From that day on his queries count for the `data-platform` team. Once the team aggregate exists, a team's CPU and bytes could be summed from it instead, but distinct users over a period always needs to come from the facts.
+
 ## Users and teams
 
 We model that user -> team information comes from a daily HR export. A user's past queries are attributed to the team they were on at the time.
