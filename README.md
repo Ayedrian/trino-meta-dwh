@@ -153,4 +153,20 @@ In production, an Airflow DAG would take over the runner's job: one run per day 
 
 ## Additional metadata
 
+Beyond the HR export, the most immediately useful addition would be a table catalog, `dim_table`, which isn't built at this point because we have no source for most of its columns. It would have one row per table:
+
+| Column | Source | Used for |
+|---|---|---|
+| `catalog_name`, `schema_name`, `table_name` | the lakehouse catalog, same key as the bridge | joining usage to tables, including tables nobody queried |
+| `owner_team` | a data catalog, or maintained by hand | usage and cost per owning team, e.g. "unused tables owned by team Y" |
+| `description`, `tags` | a data catalog | finding the right table, for people and AI agents |
+| `storage_bytes` | Iceberg's `$files` metadata table | storage next to query cost, e.g. large tables nobody reads |
+
+The bridge table currently only contains tables that were read at least once, so finding unused tables would require having this full list. Combined with the usage statistics, e.g. how often a table is queried and by which teams, it could also tell an AI agent which of several similar tables people actually use. Some of this exists already: every model column has a comment with its meaning, unit and how it may be aggregated, which DESCRIBE and any catalog browser show.
+
 ## Possible extensions
+
+- **Writes:** the event also contains the table a query wrote, so "who writes table X?" and which tables feed which would be one column and one additional bridge away.
+- **Views:** `ioMetadata.inputs` expands views to their base tables. The event's `metadata.tables` would answer "who queried view X?".
+- **Query patterns:** a fingerprint of the SQL text with its literals stripped would find repeated expensive queries and give AI agents example queries per table, without storing potentially sensitive literals (currently we drop the SQL text).
+- **Data at volume:** the demo right now runs using fairly few hand-written events. A generator for a few weeks of data would show the trend query over many weeks and give us load times for a rough scale estimate.
