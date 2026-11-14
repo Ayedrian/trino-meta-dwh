@@ -33,7 +33,7 @@ Populate the model tables for the 10th to the 13th of November. The 13th holds e
 If no dates are specified, the pipeline simply loads the last 3 complete UTC days (the 3 days before today). That's what a daily scheduled run would do, so that events that arrive a day or two late are still picked up.
 The demo events currently are on fixed dates in November 2026, when I worked on this repo, so a run without dates only finds them if those days are among the last 3.
 
-To ask how many distinct users queried `iceberg.analytics.page_views` (expected: 4) and how much CPU and bytes the team `product-analytics` used (expected: 14402 ms and 452460198 bytes), both from the 10th to the 12th of November:
+To ask how many distinct users queried `iceberg.analytics.page_views` (expected: 4) and how much CPU and bytes the team `product-analytics` used (expected: 14402 ms and 452460198 bytes), both from the 10th to the 12th of November, and how the team's usage changes per week (expected: one row for the week starting 9 November, 6 queries by 2 users, 19615 ms):
 
 ```sh
 docker compose exec -T trino trino --catalog iceberg --output-format ALIGNED < queries/examples.sql

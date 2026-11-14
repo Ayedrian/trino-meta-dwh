@@ -28,4 +28,27 @@ LEFT JOIN meta.user_team_membership AS m
    AND f.query_date >= m.valid_from
    AND f.query_date < m.valid_to
 WHERE coalesce(m.team, 'unknown') = 'product-analytics'
-  AND f.query_date BETWEEN DATE '2026-11-10' AND DATE '2026-11-12'
+  AND f.query_date BETWEEN DATE '2026-11-10' AND DATE '2026-11-12';
+
+-- How did the usage of team Y change over time?
+-- One row per week (weeks start on Monday) with the team's queries, distinct users,
+-- CPU and bytes, with users assigned to teams as in the previous query. Distinct
+-- users are counted per week from the facts, never summed up from days.
+-- Change 'week' (and week_start) to 'day' or 'month' for another grain, and let the
+-- period start and end on the grain's boundaries so the first and last rows are whole.
+-- Weeks without any queries from the team have no row
+SELECT
+    date_trunc('week', f.query_date) AS week_start,
+    count(*)                         AS queries,
+    count(DISTINCT f.user)           AS distinct_users,
+    sum(f.cpu_time_ms)               AS cpu_time_ms,
+    sum(f.physical_input_bytes)      AS physical_input_bytes
+FROM meta.fact_query AS f
+LEFT JOIN meta.user_team_membership AS m
+    ON m.user = f.user
+   AND f.query_date >= m.valid_from
+   AND f.query_date < m.valid_to
+WHERE coalesce(m.team, 'unknown') = 'product-analytics'
+  AND f.query_date BETWEEN DATE '2026-11-09' AND DATE '2026-11-15'
+GROUP BY 1
+ORDER BY 1;
