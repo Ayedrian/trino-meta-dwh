@@ -24,10 +24,10 @@ Insert a few demo events and daily HR user-to-team snapshots into the raw tables
 .venv/bin/python load_demo_data.py
 ```
 
-Populate the model tables for the 10th to the 12th of November. Each day is replaced, so running it again doesn't add anything new.
+Populate the model tables for the 10th to the 13th of November. The 13th holds edge cases (a duplicate event, a failed query etc.). Each day is replaced, so running it again doesn't add anything new, and duplicate events are counted once.
 
 ```sh
-.venv/bin/python run_pipeline.py --start 2026-11-10 --end 2026-11-12
+.venv/bin/python run_pipeline.py --start 2026-11-10 --end 2026-11-13
 ```
 
 If no dates are specified, the pipeline simply loads the last 3 complete UTC days (the 3 days before today). That's what a daily scheduled run would do, so that events that arrive a day or two late are still picked up.
