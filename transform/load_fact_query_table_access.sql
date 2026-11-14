@@ -7,6 +7,11 @@
 --
 -- Raw events can arrive more than once, so only one row per query_id is kept
 -- before unnesting, similar to load_fact_query.sql
+--
+-- Only data tables count as table usage. Inputs from the system catalog,
+-- from information_schema and from Iceberg metadata tables (names with a $,
+-- e.g. orders$snapshots) are dropped, since they represent mostly background calls
+-- by tools.
 
 DELETE FROM meta.fact_query_table_access WHERE query_date = DATE '{day}';
 
@@ -31,4 +36,7 @@ FROM (
 ) AS e
 CROSS JOIN UNNEST(e.inputs) AS i
 WHERE e.copy_number = 1
+  AND i.catalog_name <> 'system'
+  AND i.schema_name <> 'information_schema'
+  AND i.table_name NOT LIKE '%$%'
 GROUP BY 1, 2, 3, 4, 5, 6

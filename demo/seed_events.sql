@@ -15,6 +15,11 @@
 --          and sessions once
 --   00014  svc_reporting's nightly job ends at 2026-11-14 00:30:00 +01:00,
 --          which is 2026-11-13 23:30:00 UTC
+--   00015  dan's BI tool asks for metadata, reading only system.runtime.queries
+--          and iceberg.information_schema.columns, so the query has no bridge rows
+--          but its 87 ms of CPU count for dan's team
+--   00016  alice reads orders and its Iceberg metadata table orders$snapshots
+--   Metadata inputs count as 0 bytes, the value doesn't matter since they're dropped
 --
 -- Expected answers:
 --
@@ -23,7 +28,7 @@
 --   2026-11-10  4       4      6
 --   2026-11-11  3       3      5
 --   2026-11-12  3       3      4
---   2026-11-13  5       4      5
+--   2026-11-13  7       6      6
 --
 -- Distinct users per table          2026-11-10 to 12   2026-11-10 to 11   2026-11-10 to 13   2026-11-13
 --   iceberg.analytics.page_views    4                  3                  4                  1
@@ -32,12 +37,14 @@
 --   iceberg.sales.customers         2                  2                  3                  1
 --
 -- Bridge row of 00013 for page_views: physical_input_bytes 91322423
+-- Bridge rows of 00016: orders only, with physical_input_bytes 28563190
+-- No bridge row has catalog system, schema information_schema or a $ in its table name
 --
 -- Totals, counting the duplicate once  2026-11-10 to 12   2026-11-10 to 13
---   cpu_time_ms                        18022              26825
---   physical_input_bytes               683671918          951362764
+--   cpu_time_ms                        18022              27643
+--   physical_input_bytes               683671918          979925954
 --
--- Counting the duplicate twice would give 27243 and 982570318 over 2026-11-10 to 13
+-- Counting the duplicate twice would give 28061 and 1011133508 over 2026-11-10 to 13
 -- =============================================================================
 
 DELETE FROM raw.trino_query_completed;
@@ -85,4 +92,10 @@ VALUES
         ROW('iceberg', 'analytics', 'page_views', 38904117),
         ROW('iceberg', 'analytics', 'sessions', 20733985)]),
     ('20261113_232948_00014_x7k2p', 'FINISHED', 'svc_reporting', TIMESTAMP '2026-11-14 00:30:00 +01:00', 305, 37110482, 12614373, ARRAY[
-        ROW('iceberg', 'sales', 'orders', 37110482)])
+        ROW('iceberg', 'sales', 'orders', 37110482)]),
+    ('20261113_091403_00015_x7k2p', 'FINISHED', 'dan', TIMESTAMP '2026-11-13 09:14:05 UTC', 87, 0, 2118436, ARRAY[
+        ROW('system', 'runtime', 'queries', 0),
+        ROW('iceberg', 'information_schema', 'columns', 0)]),
+    ('20261113_134958_00016_x7k2p', 'FINISHED', 'alice', TIMESTAMP '2026-11-13 13:50:22 UTC', 731, 28563190, 19402875, ARRAY[
+        ROW('iceberg', 'sales', 'orders', 28563190),
+        ROW('iceberg', 'sales', 'orders$snapshots', 0)])

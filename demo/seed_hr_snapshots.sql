@@ -37,14 +37,15 @@
 -- CPU and bytes per team, from the events in seed_events.sql
 --                      2026-11-10 to 12          2026-11-10 to 11          2026-11-10 to 13
 --                      cpu_time_ms  bytes        cpu_time_ms  bytes        cpu_time_ms  bytes
---   product-analytics  14402        452460198    12748        410185649    19528        564516606
---   data-platform      3065         173746913    1084         115156756    6437         292270869
+--   product-analytics  14402        452460198    12748        410185649    19615        564516606
+--   data-platform      3065         173746913    1084         115156756    7168         320834059
 --   unknown            555          57464807     322          36412131     860          94575289
---   total              18022        683671918    14154        561754536    26825        951362764
+--   total              18022        683671918    14154        561754536    27643        979925954
 --
 -- bob's CPU is 3577 + 1863 for product-analytics and 1981 for data-platform,
 -- the period 2026-11-10 to 11 ends before his switch. On 2026-11-13 his failed
--- query's 2954 counts for data-platform, and alice's duplicated query counts once
+-- query's 2954 counts for data-platform, and alice's duplicated query counts only once.
+-- dan's metadata-only query reads no data table, but its 87 count for product-analytics
 -- =============================================================================
 
 DELETE FROM raw.hr_user_team_snapshot;
