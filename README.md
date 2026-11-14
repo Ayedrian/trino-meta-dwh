@@ -1,4 +1,10 @@
-A small data model to turn Trino query events into historical usage statistics about Iceberg tables. Right now it answers how many distinct users queried a table and how many resources a team consumed during a period, based on a few generated demo events and HR snapshots. We model that user -> team information comes from a daily HR export. A user's past queries are attributed to the team they were on at the time.
+A small data model to turn Trino query events into historical usage statistics about Iceberg tables.
+
+The example queries (how many distinct users queried a table, how many resources a team consumed etc.) from the test task can be run against a real Trino instance in a Docker container with Iceberg tables on the local disk instead of an S3 instance. The data is a few hand-written demo events and HR snapshots. The setup steps for that (requires Docker and Python 3.9) are below. Feel free to skip the setup if you're currently only interested in skimming the SQL and reading about my design choices and assumptions I've made throughout the task. That part starts at [Data model](#data-model).
+
+**Contents:** [Running the demo](#running-the-demo) · [Data model](#data-model) · [Example queries](#example-queries) · [Users and teams](#users-and-teams) · [Queries over several tables and data sources](#queries-over-several-tables-and-data-sources) · [Resource metrics](#resource-metrics) · [How the data is updated](#how-the-data-is-updated) · [Additional metadata](#additional-metadata) · [Possible extensions](#possible-extensions)
+
+MOVE TO LATER IN README:
 
 ## Running the demo
 
@@ -43,6 +49,60 @@ To ask about another table, team or period, change the values in `queries/exampl
 
 Use `docker compose down` to stop the container and also delete all data.
 
-## Orchestration
+## Data model
+
+Two raw tables are here to represent upstream data and are only read. One table contains the Trino query events and the other a daily HR export of every user's team. Our Meta DWH turns them into the tables below in a `meta` schema.
+
+```
+raw.trino_query_completed ──┬──► meta.fact_query ──────────────┐
+                            └──► meta.fact_query_table_access ─┼──► meta.agg_*_usage_daily
+raw.hr_user_team_snapshot ─────► meta.user_team_membership ────┘    (only designed, not built here)
+```
+
+| Table | One row per | Key | |
+|---|---|---|---|
+| `fact_query` | query, failed queries included | `query_id` | built |
+| `fact_query_table_access` | query and data table read | `query_id`, table | built |
+| `user_team_membership` | user and continuous period on one team (SCD Type 2) | `user`, `valid_from` | built |
+| `agg_table_usage_daily` | table and day | table, `query_date` | only designed |
+| `agg_team_usage_daily` | team and day | `team`, `query_date` | only designed |
+
+A table is identified by `(catalog_name, schema_name, table_name)`, `query_date` is the UTC day on which the query ended.
+
+**Relationships**
+  - **`fact_query_table_access` → `fact_query`** on `query_id`: one bridge row per data table the query read. Nothing is added if the query read only metadata tables or no table at all.
+  - **`fact_query` → `user_team_membership`** on `user` with `query_date >= valid_from AND query_date < valid_to`: each query belongs to the team its user was on that day, or to `unknown` if there's no match.
+  
+The facts store the finest grain, so that any period or grouping can still be answered later. There are no dimension tables at the moment, since I have no info such as table owners or team details. I chose to simply identify tables, users and teams by their name.
+
+**Daily aggregates (only designed, not built yet).** They would keep the usage history in a small, fast form.
+  - Per table and day: `query_count`, `failed_query_count`, `distinct_users`, `attributed_cpu_time_ms` and `physical_input_bytes`.
+  - Per team and day: the same, with `cpu_time_ms` and `max_peak_user_memory_bytes` instead of attributed CPU.
+  
+`distinct_users` counts a single day and should not be summed (otherwise results would be off), so distinct users over a period would still need to come from the facts. The team is looked up when the team aggregate is loaded. A corrected mapping therefore means recomputing that aggregate for the affected days, not reloading facts.
+
+**Raw tables**
+  - `raw.trino_query_completed`: one row per Trino `QueryCompletedEvent`, partitioned by `day(end_time)`. It has only the fields our model needs: query ID, state, user, end time, CPU time, bytes read, peak memory, and the `inputs` array of tables read with their bytes. The real event has many more fields that we leave out on purpose, such as `context.groups`, the SQL text and the write statistics.
+  - `raw.hr_user_team_snapshot`: one row per user and day, with `snapshot_date`, `user` and `team`.
+
+We assume a single Trino cluster, so no table has a cluster column. The assumed DDL is in [`ddl/source/`](ddl/source/), with each event column commented with the field name in QueryCompletedEvent it comes from.
+
+The model's DDL is in [`ddl/model.sql`](ddl/model.sql). We have one load per table in [`transform/`](transform/) and the runner is in [`run_pipeline.py`](run_pipeline.py).
+
+## Example queries
+
+## Users and teams
+
+We model that user -> team information comes from a daily HR export. A user's past queries are attributed to the team they were on at the time.
+
+## Queries over several tables and data sources
+
+## Resource metrics
+
+## How the data is updated
 
 The tables are created and loaded by plain Trino SQL files, a small runner written in Python runs them in order through the official `trino` client. In prod, an Airflow DAG would probably take over: One run a day (run_pipeline.py without specified dates), retries and backfills over date ranges (start/end). dbt (`dbt-trino` adapter) would replace my script with dbt models etc.
+
+## Additional metadata
+
+## Possible extensions
