@@ -137,7 +137,19 @@ Two small caveats:
 
 ## How the data is updated
 
-The tables are created and loaded by plain Trino SQL files, a small runner written in Python runs them in order through the official `trino` client. In prod, an Airflow DAG would probably take over: One run a day (run_pipeline.py without specified dates), retries and backfills over date ranges (start/end). dbt (`dbt-trino` adapter) would replace my script with dbt models etc.
+[`run_pipeline.py`](run_pipeline.py) runs the SQL files in [`transform/`](transform/) via the official `trino` Python client, for a range of UTC days:
+
+1. First `user_team_membership` is rebuilt from all HR snapshots.
+2. For each day, `fact_query` and the bridge replace that day's partition: the day is deleted, then inserted again from raw.
+3. The daily aggregates would be replaced for the same day after that (only designed, not yet built).
+
+Because whole days are always replaced, every run can be repeated, and the following builds on that:
+- **Daily run:** without dates, the runner reloads the last 3 complete days, so events that arrive a day or two late are still picked up.
+- **Backfills and recalculations:** the same command with `--start` and `--end`, e.g. after a transform changes or a late batch arrives. A corrected HR snapshot needs no backfill of the facts, because teams are joined at query time and the membership table is rebuilt on every run.
+- **Duplicates:** we assume events can arrive more than once, so each load keeps one row per `query_id`.
+- **Failures:** the runner stops at the first error, and re-running the same command repairs the day.
+
+In production, an Airflow DAG would take over the runner's job: one run per day without dates, retries, and backfills over date ranges. With dbt (`dbt-trino`), the transform files would become dbt models.
 
 ## Additional metadata
 
