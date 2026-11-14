@@ -20,6 +20,8 @@
 --          but its 87 ms of CPU count for dan's team
 --   00016  alice reads orders and its Iceberg metadata table orders$snapshots
 --   Metadata inputs count as 0 bytes, the value doesn't matter since they're dropped
+--   00017  bob joins orders with postgresql.crm.accounts, whose bytes are reported as NULL,
+--          standing in for a connector that doesn't report bytes per table
 --
 -- Expected answers:
 --
@@ -28,23 +30,33 @@
 --   2026-11-10  4       4      6
 --   2026-11-11  3       3      5
 --   2026-11-12  3       3      4
---   2026-11-13  7       6      6
+--   2026-11-13  8       7      8
 --
 -- Distinct users per table          2026-11-10 to 12   2026-11-10 to 11   2026-11-10 to 13   2026-11-13
 --   iceberg.analytics.page_views    4                  3                  4                  1
 --   iceberg.analytics.sessions      3                  2                  4                  1
---   iceberg.sales.orders            4                  3                  4                  2
+--   iceberg.sales.orders            4                  3                  4                  3
 --   iceberg.sales.customers         2                  2                  3                  1
+--   postgresql.crm.accounts         0                  0                  1                  1
 --
 -- Bridge row of 00013 for page_views: physical_input_bytes 91322423
 -- Bridge rows of 00016: orders only, with physical_input_bytes 28563190
 -- No bridge row has catalog system, schema information_schema or a $ in its table name
 --
--- Totals, counting the duplicate once  2026-11-10 to 12   2026-11-10 to 13
---   cpu_time_ms                        18022              27643
---   physical_input_bytes               683671918          979925954
+-- CPU attribution (attributed_cpu_time_ms, attribution_method):
+--   00013  page_views  5126 * 91322423 / 112056408 = 4177.53  weighted
+--          sessions    5126 * 20733985 / 112056408 =  948.47  weighted
+--   00016  orders      731, the whole query, since the metadata table is dropped  weighted
+--   00017  orders and accounts  1509 / 2 = 754.5 each  even
+--   Every other query is weighted, and each query's shares sum to its cpu_time_ms.
+--   Over 2026-11-10 to 13 the shares sum to 29065, the total CPU minus the 87 of
+--   00015, which has no bridge rows
 --
--- Counting the duplicate twice would give 28061 and 1011133508 over 2026-11-10 to 13
+-- Totals, counting the duplicate once  2026-11-10 to 12   2026-11-10 to 13
+--   cpu_time_ms                        18022              29152
+--   physical_input_bytes               683671918          1004843260
+--
+-- Counting the duplicate twice would give 29570 and 1036050814 over 2026-11-10 to 13
 -- =============================================================================
 
 DELETE FROM raw.trino_query_completed;
@@ -98,4 +110,7 @@ VALUES
         ROW('iceberg', 'information_schema', 'columns', 0)]),
     ('20261113_134958_00016_x7k2p', 'FINISHED', 'alice', TIMESTAMP '2026-11-13 13:50:22 UTC', 731, 28563190, 19402875, ARRAY[
         ROW('iceberg', 'sales', 'orders', 28563190),
-        ROW('iceberg', 'sales', 'orders$snapshots', 0)])
+        ROW('iceberg', 'sales', 'orders$snapshots', 0)]),
+    ('20261113_163950_00017_x7k2p', 'FINISHED', 'bob', TIMESTAMP '2026-11-13 16:41:09 UTC', 1509, 24917306, 33571842, ARRAY[
+        ROW('iceberg', 'sales', 'orders', 24917306),
+        ROW('postgresql', 'crm', 'accounts', NULL)])

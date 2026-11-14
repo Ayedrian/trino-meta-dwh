@@ -38,9 +38,9 @@
 --                      2026-11-10 to 12          2026-11-10 to 11          2026-11-10 to 13
 --                      cpu_time_ms  bytes        cpu_time_ms  bytes        cpu_time_ms  bytes
 --   product-analytics  14402        452460198    12748        410185649    19615        564516606
---   data-platform      3065         173746913    1084         115156756    7168         320834059
+--   data-platform      3065         173746913    1084         115156756    8677         345751365
 --   unknown            555          57464807     322          36412131     860          94575289
---   total              18022        683671918    14154        561754536    27643        979925954
+--   total              18022        683671918    14154        561754536    29152        1004843260
 --
 -- bob's CPU is 3577 + 1863 for product-analytics and 1981 for data-platform,
 -- the period 2026-11-10 to 11 ends before his switch. On 2026-11-13 his failed
